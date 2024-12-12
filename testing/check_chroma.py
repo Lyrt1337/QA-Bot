@@ -59,6 +59,6 @@ collections = client.list_collections()
 print("Verfügbare Collections:", collections)
 
 
-collection = client.get_collection("chroma_data")
-result = collection.query(query_texts=["wie lange dauert das studium?"])
-print("Testabfrageergebnis:", result)
+# collection = client.get_collection("chroma_data")
+# result = collection.query(query_texts=["wie lange dauert das studium?"])
+# print("Testabfrageergebnis:", result)

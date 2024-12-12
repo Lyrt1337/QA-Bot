@@ -11,7 +11,7 @@ import glob
 import shutil # Importing shutil module for high-level file operations
 
 # Directory to your pdf files:
-DATA_PATH = r"data\pdf\*.*"
+DATA_PATH = r"data\pdf\test\*.*"
 PDF_FILE_PATHS = glob.glob(DATA_PATH)
 
 def load_documents():
@@ -50,6 +50,7 @@ def split_text(documents: list[Document]):
     add_start_index=True, # Flag to add start index to each chunk
   )
 
+  print(documents)
   # Split documents into smaller chunks using text splitter
   chunks = text_splitter.split_documents(documents)
   print(f"Split {len(documents)} documents into {len(chunks)} chunks.")

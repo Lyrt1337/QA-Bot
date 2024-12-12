@@ -20,7 +20,8 @@ send_button_path = r"img\send2.png"
 client = chromadb.PersistentClient(path=r"data\chroma")
 
 # connect to "chroma_data" collection
-collection = client.get_collection("chroma_data")
+# collection = client.get_collection("chroma_data")
+collection = client.get_collection("langchain")
 
 # answer generation model
 # model_name = "google/mt5-base"
@@ -57,16 +58,17 @@ def generate_response(query_text):
     prompt = f"Bitte beantworte die Frage auf Deutsch: Kontext (Deutsch): {context}\nFrage (Deutsch): {query_text}\nAntwort (bitte auf Deutsch):"
     print(prompt)
     # call model for answer generation
-    # response = generator(prompt, max_length=100, eos_token_id=tokenizer.eos_token_id, num_return_sequences=1)
+    # response = generator(prompt, max_length=150, eos_token_id=tokenizer.eos_token_id, num_return_sequences=1)
     response = generator(prompt,
-                         max_length=100,
-                         min_length=5,
-                         no_repeat_ngram_size=2,
+                         max_length=150,
+                         min_length=50,
+                        #  no_repeat_ngram_size=2,
                          num_return_sequences=1,
                          eos_token_id=tokenizer.eos_token_id,
-                         top_p=0.9,
-                         temperature=0.7,
-                         do_sample=True)
+                        #  top_p=0.9,
+                        #  temperature=0.7,
+                        #  do_sample=True
+                         )
     response_text = response[0]['generated_text'].strip()
     response_text = response_text.rstrip("[]'\"")
     cleaned_response = response_text.split(".")
@@ -83,7 +85,7 @@ def on_submit():
 
     # show user input
     output_text.config(state=tk.NORMAL)
-    output_text.insert(tk.END, f"Du: {query_text}\n\n")
+    output_text.insert(tk.END, f"Du: \n{query_text}\n\n")
     output_text.config(state=tk.DISABLED)
 
     # generate response
