@@ -4,6 +4,10 @@ from PIL import ImageTk, Image
 from transformers import T5Tokenizer, pipeline
 import chromadb
 
+from langchain_chroma import Chroma
+from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+import google.generativeai as genai
+
 
 # general settings
 # colors
@@ -18,62 +22,55 @@ send_button_path = r"img\send2.png"
 
 # initialize ChromaDB-Client
 client = chromadb.PersistentClient(path=r"data\chroma")
+collection_name = "chroma_data"
 
 # connect to "chroma_data" collection
-# collection = client.get_collection("chroma_data")
-collection = client.get_collection("langchain")
+collection = client.get_collection(collection_name)
 
-# answer generation model
-# model_name = "google/mt5-base"
-model_name = "google/flan-t5-base"
-# model_name = "dbmdz/bert-base-german-cased"
-# model_name = "deepset/gbert-base"
-# model_name = "deepset/mt5-small-german-finetune-qa"
-# model_name = "deepset/roberta-base-squad2"
+# answer generation model API
+GEMINI_API_KEY = "AIzaSyBS9jeD7MMPwm_kaoBaYfdoAyAnC7AtETE"
 
-# tokenizer = AutoTokenizer.from_pretrained(model_name)
-# model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-# generator = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+def generate_rag_prompt(query, context):
 
-# generator = pipeline("text2text-generation", model="google/flan-t5-base")
-# generator = pipeline("text2text-generation", model="dbmdz/bert-base-german-cased")
-# generator = pipeline("text2text-generation", model="deepset/gbert-base")
-# generator = pipeline("text2text-generation", model="google/mt5-base")
-# generator = pipeline("text2text-generation", model="deepset/mt5-small-german-finetune-qa")
-generator = pipeline("text2text-generation", model=model_name)
-tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-base")
+    prompt = (f"""
+              Du bist ein hilfsbereiter Assistent der auf Fragen aus dem unten stehenden\
+              Text beantwortet. Antworte immer mit einem Vollständigen Satz, drücke dich\
+              verständlich aus und verwende alle wichtigen Informationen aus dem Text.\
+              Wenn möglich, fasse dich kurz.\
+              Falls der Text auch Informationen enthält, die für die Frage irrelevant sind,\
+              kannst du diese Ignorieren.\
+QUESTION: {query}
+CONTEXT: {context}
+""")
+    return prompt
 
-# generator = pipeline("question-answering", model=model_name)
+def get_relevant_context_from_db(query):
+    context = ""
+    embedding_function = HuggingFaceBgeEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2",
+                                             model_kwargs={"device": "cpu"})
+    vector_db = Chroma(collection_name = collection_name,
+                       persist_directory=r"data\chroma",
+                       embedding_function=embedding_function)
 
+    search_results = vector_db.similarity_search_with_score(query, k=6)
+    similarity_scores = []
+    for result, score in search_results:
+        context += result.page_content + "\n"
+        corrected_score = 1 - score / 2
+        print("result: ", result)
+        print("score: ", corrected_score)
+        print("--------------------------------------")
+        similarity_scores.append(corrected_score)
+    print("all scores: ", similarity_scores)
+
+    
+    return context
 
 def generate_response(query_text):
-    # ChromaDB query
-    result = collection.query(query_texts=query_text, n_results=3)
-    if not result["documents"]:
-        return "Es wurden keine relevanten Informationen gefunden. Bitte versuche es mit einer anderen Frage."
-    
-    context = result["documents"][0]  # take first result
-    
-    # generate prompt to be answered
-    prompt = f"Bitte beantworte die Frage auf Deutsch: Kontext (Deutsch): {context}\nFrage (Deutsch): {query_text}\nAntwort (bitte auf Deutsch):"
-    print(prompt)
-    # call model for answer generation
-    # response = generator(prompt, max_length=150, eos_token_id=tokenizer.eos_token_id, num_return_sequences=1)
-    response = generator(prompt,
-                         max_length=150,
-                         min_length=50,
-                        #  no_repeat_ngram_size=2,
-                         num_return_sequences=1,
-                         eos_token_id=tokenizer.eos_token_id,
-                        #  top_p=0.9,
-                        #  temperature=0.7,
-                        #  do_sample=True
-                         )
-    response_text = response[0]['generated_text'].strip()
-    response_text = response_text.rstrip("[]'\"")
-    cleaned_response = response_text.split(".")
-    response_text = cleaned_response[0]
-    return response_text if response_text else "Es konnte keine Antwort generiert werden."
+    genai.configure(api_key=GEMINI_API_KEY)
+    model =genai.GenerativeModel(model_name="gemini-pro")
+    answer= model.generate_content(query_text)
+    return answer.text
 
 
 # callback function for results
@@ -88,12 +85,15 @@ def on_submit():
     output_text.insert(tk.END, f"Du: \n{query_text}\n\n")
     output_text.config(state=tk.DISABLED)
 
+    # query DB
+    context = get_relevant_context_from_db(query_text)
+    prompt = generate_rag_prompt(query_text, context)
     # generate response
-    response = generate_response(query_text)
+    response = generate_response(prompt)
 
     # show bot answer
     output_text.config(state=tk.NORMAL)
-    output_text.insert(tk.END, f"Bot: \n{response}\n\n\n")
+    output_text.insert(tk.END, f"FHGR Bot: \n{response}\n\n\n")
     output_text.config(state=tk.DISABLED)
     output_text.see(tk.END)  # Scroll to the end
     
@@ -141,7 +141,8 @@ output_text = scrolledtext.ScrolledText(chat_frame,
                                         font=font,
                                         borderwidth=0,
                                         width=60,
-                                        height=35)
+                                        height=35,
+                                        )
 
 output_text.pack(fill=tk.BOTH, expand=True)
 output_text.config({"background": window_color})
@@ -172,6 +173,12 @@ submit_button.pack(side="left")
 # bind the Enter key to the send_message function
 entry.bind("<Return>", lambda event=None: on_submit())
 
+# welcome message
+welcome_message= "Hallo. Wie kann ich behilflich sein?"
+output_text.config(state=tk.NORMAL)
+output_text.insert(tk.END, f"FHGR Bot: \n{welcome_message}\n\n\n")
+output_text.config(state=tk.DISABLED)
+output_text.see(tk.END)  # Scroll to the end
 
 # Tkinter mainloop
 root.mainloop()

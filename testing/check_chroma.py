@@ -30,7 +30,7 @@ client = chromadb.PersistentClient(path=r"data\chroma")
 def check_stored_chunks():
     
     # Überprüfen, ob die Collection existiert
-    collection = client.get_collection("chroma_data")
+    collection = client.get_collection("reglemente_MiniLM")
 
     # Abfrage der ersten 5 gespeicherten Chunks
     stored_chunks = collection.get()
@@ -47,7 +47,7 @@ def abfrage():
     
     # ChromaDB-Client und Collection abrufen
     client = chromadb.Client(Settings(persist_directory=r"data\chroma"))
-    collection = client.get_collection("chroma_data")
+    collection = client.get_collection("reglemente_MiniLM")
 
     # Testabfrage
     result = collection.query(query_text="wie lange dauert das studium?")
@@ -57,6 +57,17 @@ def abfrage():
 
 collections = client.list_collections()
 print("Verfügbare Collections:", collections)
+
+# collection = client.get_collection("reglemente_MiniLM")
+# print("Number of Documents in Collection:", len(collection.get()['documents']))
+
+# collection = client.get_collection("test")
+# print("Number of Documents in Collection:", len(collection.get()['documents']))
+
+# embeddings = collection.get()["embeddings"]"
+# print("Number of Embeddings:", embeddings)"
+# collection.create_index()
+# print("Indexing Status:", collection.get()["index"])
 
 
 # collection = client.get_collection("chroma_data")
