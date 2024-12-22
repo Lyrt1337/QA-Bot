@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import scrolledtext
 from PIL import ImageTk, Image
-from transformers import T5Tokenizer, pipeline
 import chromadb
 
 from langchain_chroma import Chroma
